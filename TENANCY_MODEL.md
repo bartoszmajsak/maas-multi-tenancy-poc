@@ -1,6 +1,6 @@
 # Multi-Tenant Architecture
 
-## Overview
+## Summary
 
 This PoC demonstrates a multi-tenant Model-as-a-Service architecture where **each tenant is isolated by namespace**. The namespace boundary provides:
 
@@ -58,7 +58,7 @@ The namespace boundary is flexible — models can live outside the tenant namesp
 
 This allows scenarios like shared models (accessible by multiple tenants) or partner model namespaces while maintaining tenant isolation for billing and authentication.
 
-## Deployment Components
+## Architecture Overview
 
 ```mermaid
 flowchart TB
@@ -68,14 +68,12 @@ flowchart TB
     end
 
     subgraph subGraph2["tenant-a ns"]
-        AP_A["AuthPolicy"]
         MAAS_A["maas-api"]
         MOD_A["tenant models"]
         RBAC_A["RBAC"]
     end
 
     subgraph subGraph3["tenant-b ns"]
-        AP_B["AuthPolicy"]
         MAAS_B["maas-api"]
         MOD_B["tenant models"]
         RBAC_B["RBAC"]
@@ -86,15 +84,10 @@ flowchart TB
         SM_RBAC["RBAC"]
     end
 
-    GA --> AP_A & MOD_A
-    AP_A --> MAAS_A
-    GB --> AP_B & MOD_B
-    AP_B --> MAAS_B
+    GA --> MAAS_A & MOD_A
+    GB --> MAAS_B & MOD_B
     GA -.-> SM
     GB -.-> SM
-
-    style subGraph2 fill:#BBDEFB
-    style subGraph3 fill:#BBDEFB
 ```
 
 ## Cross-Tenant Access
