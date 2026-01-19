@@ -1,0 +1,43 @@
+# RBAC for shared Llama3 model
+# Grants access to all tiers from both tenant gateways
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: model-post-access
+  namespace: shared-models
+rules:
+  - apiGroups: ["serving.kserve.io"]
+    resources: ["llminferenceservices"]
+    verbs: ["post"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: model-post-access-binding
+  namespace: shared-models
+subjects:
+  # Tenant-A tiers
+  - kind: Group
+    name: system:serviceaccounts:tenant-a-tier-free
+    apiGroup: rbac.authorization.k8s.io
+  - kind: Group
+    name: system:serviceaccounts:tenant-a-tier-premium
+    apiGroup: rbac.authorization.k8s.io
+  - kind: Group
+    name: system:serviceaccounts:tenant-a-tier-enterprise
+    apiGroup: rbac.authorization.k8s.io
+  # Tenant-B tiers
+  - kind: Group
+    name: system:serviceaccounts:tenant-b-tier-free
+    apiGroup: rbac.authorization.k8s.io
+  - kind: Group
+    name: system:serviceaccounts:tenant-b-tier-premium
+    apiGroup: rbac.authorization.k8s.io
+  - kind: Group
+    name: system:serviceaccounts:tenant-b-tier-enterprise
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: model-post-access
+  apiGroup: rbac.authorization.k8s.io

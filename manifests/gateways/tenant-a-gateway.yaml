@@ -1,0 +1,31 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: tenant-a-gateway
+  namespace: openshift-ingress
+  annotations:
+    opendatahub.io/managed: "false"
+    security.opendatahub.io/authorino-tls-bootstrap: "true"
+  labels:
+    opendatahub.io/managed: "false"
+spec:
+  gatewayClassName: openshift-default
+  listeners:
+  - name: https
+    port: 443
+    protocol: HTTPS
+    hostname: PLACEHOLDER_TENANT_A_HOSTNAME
+    tls:
+      mode: Terminate
+      certificateRefs:
+      - name: PLACEHOLDER_TLS_SECRET
+    allowedRoutes:
+      namespaces:
+        from: Selector
+        selector:
+          matchExpressions:
+          - key: kubernetes.io/metadata.name
+            operator: In
+            values:
+            - tenant-a
+            - shared-models

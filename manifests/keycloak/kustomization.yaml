@@ -1,0 +1,42 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: keycloak-system
+
+resources:
+  - http-route.yaml
+  - keycloak-instance.yaml
+  - realms-configmap.yaml
+# Note: Gateway deployed separately in gateways/ (must be in openshift-ingress ns)
+
+configMapGenerator:
+- envs:
+  - params.env
+  name: keycloak-parameters
+generatorOptions:
+  disableNameSuffixHash: true
+
+replacements:
+# HTTPRoute hostname
+- source:
+    kind: ConfigMap
+    name: keycloak-parameters
+    fieldPath: data.keycloak-hostname
+  targets:
+  - select:
+      kind: HTTPRoute
+      name: keycloak-route
+    fieldPaths:
+    - spec.hostnames.0
+
+# Keycloak instance hostname
+- source:
+    kind: ConfigMap
+    name: keycloak-parameters
+    fieldPath: data.keycloak-hostname
+  targets:
+  - select:
+      kind: Keycloak
+      name: tenant-poc-keycloak
+    fieldPaths:
+    - spec.hostname.hostname

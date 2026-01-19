@@ -1,0 +1,91 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Gateways in openshift-ingress namespace
+# Do NOT set namespace here - each gateway specifies its own
+
+resources:
+- gateway-class.yaml
+- keycloak-gateway.yaml
+- tenant-a-gateway.yaml
+- tenant-b-gateway.yaml
+
+configMapGenerator:
+- envs:
+  - params.env
+  name: gateway-parameters
+generatorOptions:
+  disableNameSuffixHash: true
+
+replacements:
+# Keycloak gateway hostname
+- source:
+    kind: ConfigMap
+    name: gateway-parameters
+    fieldPath: data.keycloak-hostname
+  targets:
+  - select:
+      kind: Gateway
+      name: keycloak-gateway
+    fieldPaths:
+    - spec.listeners.[name=https].hostname
+
+# Keycloak gateway TLS secret
+- source:
+    kind: ConfigMap
+    name: gateway-parameters
+    fieldPath: data.tls-secret-name
+  targets:
+  - select:
+      kind: Gateway
+      name: keycloak-gateway
+    fieldPaths:
+    - spec.listeners.[name=https].tls.certificateRefs.0.name
+
+# Tenant-A gateway hostname
+- source:
+    kind: ConfigMap
+    name: gateway-parameters
+    fieldPath: data.tenant-a-hostname
+  targets:
+  - select:
+      kind: Gateway
+      name: tenant-a-gateway
+    fieldPaths:
+    - spec.listeners.[name=https].hostname
+
+# Tenant-A gateway TLS secret
+- source:
+    kind: ConfigMap
+    name: gateway-parameters
+    fieldPath: data.tls-secret-name
+  targets:
+  - select:
+      kind: Gateway
+      name: tenant-a-gateway
+    fieldPaths:
+    - spec.listeners.[name=https].tls.certificateRefs.0.name
+
+# Tenant-B gateway hostname
+- source:
+    kind: ConfigMap
+    name: gateway-parameters
+    fieldPath: data.tenant-b-hostname
+  targets:
+  - select:
+      kind: Gateway
+      name: tenant-b-gateway
+    fieldPaths:
+    - spec.listeners.[name=https].hostname
+
+# Tenant-B gateway TLS secret
+- source:
+    kind: ConfigMap
+    name: gateway-parameters
+    fieldPath: data.tls-secret-name
+  targets:
+  - select:
+      kind: Gateway
+      name: tenant-b-gateway
+    fieldPaths:
+    - spec.listeners.[name=https].tls.certificateRefs.0.name

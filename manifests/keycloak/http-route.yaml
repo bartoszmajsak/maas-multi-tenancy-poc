@@ -1,0 +1,19 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: keycloak-route
+  namespace: keycloak-system
+spec:
+  parentRefs:
+  - name: keycloak-gateway
+    namespace: openshift-ingress
+  hostnames:
+  - PLACEHOLDER_KEYCLOAK_HOSTNAME
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /
+    backendRefs:
+    - name: tenant-poc-keycloak-service
+      port: 8080

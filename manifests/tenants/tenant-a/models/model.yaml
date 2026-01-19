@@ -1,0 +1,61 @@
+# Code Assistant Model for Tenant-A (Engineering team)
+# NOTE: Using simulator - uri points to smallest model to save resources,
+#       the 'name' field is what appears in API responses
+apiVersion: serving.kserve.io/v1alpha1
+kind: LLMInferenceService
+metadata:
+  name: codellama-7b
+  namespace: tenant-a
+spec:
+  model:
+    uri: hf://sshleifer/tiny-gpt2  # ~2MB test model, simulator ignores it anyway
+    name: codellama/CodeLlama-7b-Instruct
+  replicas: 1
+  router:
+    route: {}
+    gateway:
+      refs:
+        - name: tenant-a-gateway
+          namespace: openshift-ingress
+  template:
+    containers:
+      - name: main
+        image: "ghcr.io/llm-d/llm-d-inference-sim:v0.5.1"
+        imagePullPolicy: Always
+        command: ["/app/llm-d-inference-sim"]
+        args:
+        - --port
+        - "8000"
+        - --model
+        - codellama/CodeLlama-7b-Instruct
+        - --mode
+        - random
+        - --ssl-certfile
+        - /var/run/kserve/tls/tls.crt
+        - --ssl-keyfile
+        - /var/run/kserve/tls/tls.key
+        env:
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.name
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.namespace
+        ports:
+          - name: https
+            containerPort: 8000
+            protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: https
+            scheme: HTTPS
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: https
+            scheme: HTTPS

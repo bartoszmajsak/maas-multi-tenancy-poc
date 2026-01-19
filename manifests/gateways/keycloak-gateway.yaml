@@ -1,0 +1,22 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: keycloak-gateway
+  namespace: openshift-ingress
+spec:
+  gatewayClassName: openshift-default
+  listeners:
+  - name: https
+    port: 443
+    protocol: HTTPS
+    hostname: PLACEHOLDER_KEYCLOAK_HOSTNAME
+    tls:
+      mode: Terminate
+      certificateRefs:
+      - name: PLACEHOLDER_TLS_SECRET
+    allowedRoutes:
+      namespaces:
+        from: Selector
+        selector:
+          matchLabels:
+            kubernetes.io/metadata.name: keycloak-system

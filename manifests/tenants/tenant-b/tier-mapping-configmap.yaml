@@ -1,0 +1,33 @@
+# Tier to Group Mapping for Tenant-B
+# Maps Keycloak groups to rate limit tiers
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tier-to-group-mapping
+  namespace: tenant-b
+  labels:
+    app: maas-api
+    component: tier-mapping
+data:
+  tiers: |
+    # Free tier - default for all authenticated users
+    - name: free
+      displayName: Free Tier
+      level: 0
+      groups:
+        - system:authenticated
+
+    # Premium tier - for project teams
+    - name: premium
+      displayName: Premium Tier
+      level: 1
+      groups:
+        - Project-Omega
+
+    # Enterprise tier - for security team with highest priority
+    - name: enterprise
+      displayName: Enterprise Tier
+      level: 2
+      groups:
+        - Product-Security
