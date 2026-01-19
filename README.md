@@ -6,13 +6,6 @@ A proof-of-concept demonstrating multi-tenant Model-as-a-Service on OpenShift wi
 - **Tier-based access control** (free/premium/enterprise) with fine-grained permissions via Kubernetes RBAC
 - **Shared models** accessible by multiple tenants
 
-> [!IMPORTANT]
-> **Requires changes in maas-api for shared models.** Install with:
-> ```bash
-> ./deploy.sh --install-prereqs --maas-api-image quay.io/bmajsak/maas-api:gw
-> ```
-> Depends on https://github.com/opendatahub-io/models-as-a-service/pull/360
-
 ## Notes
 
 - MaaS API AuthPolicy now normalizes identity fields for both Keycloak JWT and service-account tokens (see `manifests/tenants/*/maas-api/kustomization.yaml`). This differs from the original setup at the moment.
@@ -21,10 +14,7 @@ A proof-of-concept demonstrating multi-tenant Model-as-a-Service on OpenShift wi
 ## Requirements
 
 - OpenShift 4.19.9+
-- `oc`, `kubectl`, `kustomize`, `jq`, `make`, `git`
-
-> [!NOTE]
-> ODH/KServe is installed automatically by `./scripts/prerequisites.sh`
+- `oc`, `kubectl`, `kustomize`, `jq`, `git`
 
 > [!IMPORTANT]
 > **RBAC for models is explicitly defined**
@@ -41,6 +31,13 @@ A proof-of-concept demonstrating multi-tenant Model-as-a-Service on OpenShift wi
 > ```
 
 ## Quick Start
+
+> [!IMPORTANT]
+> **Requires changes in maas-api for shared models.** Install with:
+> ```bash
+> ./deploy.sh --install-prereqs --maas-api-image quay.io/bmajsak/maas-api:gw
+> ```
+> Depends on https://github.com/opendatahub-io/models-as-a-service/pull/360
 
 ```bash
 # Install prerequisites + deploy
