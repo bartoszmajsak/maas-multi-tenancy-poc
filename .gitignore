@@ -1,0 +1,5 @@
+# Auto-generated cluster configuration
+# Created by obtain-cluster-config.sh with cluster-specific values
+/params.env
+/manifests/gateways/params.env
+/manifests/keycloak/params.env
