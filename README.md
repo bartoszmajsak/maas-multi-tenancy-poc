@@ -102,31 +102,47 @@ curl -sk -H "Authorization: Bearer $TOKEN" "https://tenant-b.$DOMAIN/maas-api/v1
 
 ```
 tenant-poc/
-├── deploy.sh                  # Main deployment script
-├── test.sh                    # Combined test script
-├── README.md
-├── TENANCY_MODEL.md           # Architecture diagrams
-├── manifests/
-│   ├── gateways/              # All gateways (openshift-ingress ns)
-│   │   ├── keycloak-gateway.yaml
-│   │   ├── tenant-a-gateway.yaml
-│   │   └── tenant-b-gateway.yaml
-│   ├── keycloak/              # Keycloak instance + realms
-│   ├── tenants/               # Tenant overlays + shared base
-│   │   ├── base/
-│   │   ├── tenant-a/
-│   │   │   ├── models/
-│   │   │   │   ├── model.yaml
-│   │   │   │   └── rbac.yaml
-│   │   │   ├── tier-mapping-configmap.yaml
-│   │   │   └── maas-api/      # MaaS API deployment
-│   │   └── tenant-b/
-│   │       └── models/
-│   │           ├── model.yaml
-│   │           └── rbac.yaml
-│   └── shared-models/         # Models for both tenants
-└── scripts/
-    ├── obtain-cluster-config.sh  # Config generation
-    ├── prerequisites.sh          # Operator installation (ODH, Kuadrant, Keycloak)
-    └── deployment-helpers.sh     # Helper functions
+├── deploy.sh                     # Main deployment script
+├── test.sh                       # Combined test script
+├── params.env                    # Cluster configuration (generated)
+├── params.env.example            # Configuration template
+└── manifests/
+    ├── gateways/                 # All gateways (openshift-ingress ns)
+    │   ├── gateway-class.yaml
+    │   ├── keycloak-gateway.yaml
+    │   ├── tenant-a-gateway.yaml
+    │   ├── tenant-b-gateway.yaml
+    │   └── kustomization.yaml
+    ├── keycloak/                 # Keycloak instance + realms
+    │   ├── keycloak-instance.yaml
+    │   ├── realms-configmap.yaml
+    │   ├── http-route.yaml
+    │   └── kustomization.yaml
+    ├── shared-models/            # Models accessible by multiple tenants
+    │   ├── model.yaml
+    │   ├── rbac.yaml
+    │   └── kustomization.yaml
+    └── tenants/
+        ├── base/                 # Shared base resources
+        │   ├── maas-api/
+        │   ├── maas-api-replacements/ # Kustomize Component for tenant value injection
+        │   └── policies/
+        ├── tenant-a/
+        │   ├── kustomization.yaml
+        │   ├── params.env
+        │   ├── tier-mapping-configmap.yaml
+        │   ├── maas-api/
+        │   ├── models/
+        │   │   ├── model.yaml
+        │   │   └── rbac.yaml
+        │   └── policies/
+        └── tenant-b/
+            ├── kustomization.yaml
+            ├── params.env
+            ├── tier-mapping-configmap.yaml
+            ├── maas-api/
+            ├── models/
+            │   ├── model.yaml
+            │   └── rbac.yaml
+            └── policies/
 ```
