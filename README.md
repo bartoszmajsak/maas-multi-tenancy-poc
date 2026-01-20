@@ -52,7 +52,7 @@ A proof-of-concept demonstrating multi-tenant Model-as-a-Service on OpenShift wi
 
 ## Architecture
 
-See [TENANCY_MODEL.md](TENANCY_MODEL.md) for detailed diagrams.
+See [TENANCY_MODEL.md](TENANCY_MODEL.md) for detailed diagrams, architecture comparison, and personas.
 
 | Component | Tenant-A | Tenant-B | Shared |
 |-----------|----------|----------|--------|
@@ -61,6 +61,15 @@ See [TENANCY_MODEL.md](TENANCY_MODEL.md) for detailed diagrams.
 | Namespace | `tenant-a` | `tenant-b` | `shared-models` |
 | MaaS API | ✅ | ✅ | - |
 | Models | CodeLlama-7b | Mistral-Security | Llama3-8B |
+
+### Personas
+
+| Role | Responsibilities |
+|------|-----------------|
+| **Platform Admin** | Manage tenants, gateways, shared models, AuthPolicies, Keycloak |
+| **Tenant Admin** | Deploy models, configure RBAC & rate limits, manage tier mappings (within their namespace) |
+
+See [TENANCY_MODEL.md](TENANCY_MODEL.md#personas) for detailed responsibilities.
 
 ## Testing
 
