@@ -136,6 +136,31 @@ Policies can be applied at different levels:
 
 This allows both tenant-wide defaults and model-specific overrides for rate limiting, authentication, etc.
 
+## Shared Model Infrastructure Considerations
+
+Sharing model infrastructure (GPUs, serving instances) works well when tenants are e.g. **teams within the same organization**, but risks increase as tenants become more separate organizational units.
+
+### Two Levels of Sharing
+
+| Level | What it means | Risk profile |
+|-------|---------------|--------------|
+| **Shared infrastructure** | Different containers/processes on the same GPU | Lower risk—OS-level isolation exists, but GPU memory boundaries are weak |
+| **Shared model process** | Multiple tenants hit the same vLLM/TGI server | Higher risk—KV-cache and memory are shared within the process (PromptPeek attacks apply here) |
+
+### Core Risks
+
+| Risk | Impact |
+|------|--------|
+| **GPU memory isolation** | GPUs lack robust memory isolation. Side-channel attacks can exploit shared caches and memory hierarchies. PromptPeek demonstrated 95%+ success reconstructing prompts through KV-cache sharing in multi-tenant serving. |
+| **Performance interference** | Without hardware isolation, aggressive workloads starve neighbors. Inference latency becomes unpredictable, violating enterprise SLA guarantees. |
+| **Data leakage** | Shared GPU memory during inference creates cross-tenant exposure. Fine-tuning on shared infrastructure can leak tenant data into model behavior. |
+| **Weight poisoning** | If LoRA adapters are swapped dynamically on shared infrastructure, a malicious or corrupted adapter from one tenant can affect base model stability for others. |
+
+### Mitigations
+
+- **[MIG (Multi-Instance GPU)](https://docs.nvidia.com/datacenter/tesla/mig-user-guide/)**: On NVIDIA A100/H100, MIG provides physical hardware partitioning with isolated memory, cache, and SMs—the industry standard for addressing memory isolation and performance interference.
+- **Dedicated model processes**: Run separate vLLM instances per tenant to eliminate KV-cache sharing risks. Alternatively, vLLM's [prefix caching with `cache_salt`](https://docs.vllm.ai/en/latest/design/prefix_caching.html) can isolate cache reuse per tenant within a shared process.
+
 ## Open Questions
 
 - **Billing/Monitoring** - How to track and attribute usage per tenant? (metrics, logs, cost allocation)

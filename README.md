@@ -6,6 +6,13 @@ A proof-of-concept demonstrating multi-tenant Model-as-a-Service on OpenShift wi
 - **Tier-based access control** (free/premium/enterprise) with fine-grained permissions via Kubernetes RBAC
 - **Shared models** accessible by multiple tenants
 
+> [!NOTE]
+> **Scope: Network & API isolation**
+> 
+> This PoC focuses on **network-level and API-level tenant isolation**—separate gateways, JWT validation, namespace boundaries, and RBAC. It does **not** address GPU or model infrastructure sharing (e.g., multiple tenants on the same GPU or vLLM process).
+> 
+> For considerations on shared GPU/model infrastructure risks and mitigations, see [TENANCY_MODEL.md](TENANCY_MODEL.md#shared-model-infrastructure-considerations).
+
 ## Notes
 
 - MaaS API AuthPolicy now normalizes identity fields for both Keycloak JWT and service-account tokens (see `manifests/tenants/*/maas-api/kustomization.yaml`). This differs from the original setup at the moment.
