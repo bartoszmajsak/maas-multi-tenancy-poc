@@ -1,12 +1,18 @@
 #!/bin/bash
-# Auto-detect cluster configuration and update params.env
+# Auto-detect cluster configuration and update params.env files
 # Usage: ./scripts/obtain-cluster-config.sh
 #
 # Note: deploy.sh sources this automatically. Run standalone to regenerate
 # configuration without deploying.
 #
-# Only generates cluster-specific config (hostnames, TLS secrets).
-# Tenant params.env files use internal service URLs and have static defaults.
+# Detects:
+# - Cluster domain (for gateway hostnames)
+# - TLS secret (for HTTPS)
+#
+# Updates:
+# - params.env (root)
+# - manifests/gateways/params.env
+# - manifests/keycloak/params.env
 
 set -e
 
@@ -69,9 +75,6 @@ EOF
 keycloak-hostname=${KEYCLOAK_HOST}
 EOF
 
-    # Note: tenant params.env files are NOT generated here
-    # They use internal service URLs and have committed static defaults
-
     [[ "$quiet" != "true" ]] && echo "   ✅ Configuration updated"
     return 0
 }
@@ -87,6 +90,9 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     echo "   manifests/gateways/params.env"
     echo "   manifests/keycloak/params.env"
     echo ""
-    echo "Note: Tenant params.env files use internal service URLs (static defaults)"
-    echo "To deploy: ./deploy.sh"
+    echo "To deploy tenants:"
+    echo "   kubectl apply -f manifests/tenants/tenant-a/modelsasservice.yaml"
+    echo "   kubectl apply -f manifests/tenants/tenant-a/tier-mapping-configmap.yaml"
+    echo ""
+    echo "Note: Gateways and Keycloak use Kustomize (kubectl apply -k)"
 fi

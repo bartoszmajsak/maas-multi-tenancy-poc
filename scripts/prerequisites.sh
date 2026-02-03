@@ -218,10 +218,28 @@ fi
 # ============================================
 if [[ "$SKIP_ODH" == false ]]; then
   echo ""
-  echo "3️⃣  Installing ODH/KServe..."
+  echo "3️⃣  Checking ODH/KServe..."
 
+  ODH_OPERATOR_NS="opendatahub-operator-system"
+  ODH_INSTALLED=false
+
+  # Check multiple indicators that ODH operator is installed
   if kubectl get crd llminferenceservices.serving.kserve.io &>/dev/null 2>&1; then
       echo "   ✅ KServe CRDs already present (ODH/RHOAI detected)"
+      ODH_INSTALLED=true
+  elif kubectl get crd datascienceclusters.datasciencecluster.opendatahub.io &>/dev/null 2>&1; then
+      echo "   ✅ ODH CRDs already present"
+      ODH_INSTALLED=true
+  elif kubectl get deployment opendatahub-operator-controller-manager -n "$ODH_OPERATOR_NS" &>/dev/null 2>&1; then
+      echo "   ✅ ODH operator deployment found"
+      ODH_INSTALLED=true
+  elif kubectl get csv -n "$ODH_OPERATOR_NS" -o name 2>/dev/null | grep -q opendatahub; then
+      echo "   ✅ ODH operator CSV found (OLM installation)"
+      ODH_INSTALLED=true
+  fi
+
+  if [[ "$ODH_INSTALLED" == true ]]; then
+      echo "   ODH operator is already installed, skipping installation"
   else
       echo "   Installing OpenDataHub operator from source..."
       
@@ -231,7 +249,6 @@ if [[ "$SKIP_ODH" == false ]]; then
           exit 1
       fi
       
-      ODH_OPERATOR_NS="opendatahub-operator-system"
       ODH_OPERATOR_IMAGE="${ODH_OPERATOR_IMAGE:-quay.io/opendatahub/opendatahub-operator:latest}"
       
       echo "   Using operator image: $ODH_OPERATOR_IMAGE"
@@ -268,10 +285,11 @@ if [[ "$SKIP_ODH" == false ]]; then
       kubectl wait deployment/opendatahub-operator-controller-manager -n "$ODH_OPERATOR_NS" \
           --for=condition=Available --timeout=300s 2>/dev/null || \
           echo "   ⚠️  ODH operator not ready yet, continuing..."
-      
-      # Create DSCInitialization
-      echo "   Creating DSCInitialization..."
-      kubectl apply -f - <<EOF
+  fi
+
+  # Create DSCInitialization (always apply, whether ODH was just installed or already present)
+  echo "   Creating DSCInitialization..."
+  kubectl apply -f - <<EOF
 apiVersion: dscinitialization.opendatahub.io/v2
 kind: DSCInitialization
 metadata:
@@ -286,19 +304,21 @@ spec:
     managementState: Managed
 EOF
 
-      echo "   Waiting for DSCInitialization..."
-      for i in {1..30}; do
-          if kubectl get dscinitializations default-dsci -o jsonpath='{.status.phase}' 2>/dev/null | grep -q "Ready"; then
-              echo "   ✅ DSCInitialization ready"
-              break
-          fi
-          [[ $i -eq 30 ]] && echo "   ⚠️  DSCInitialization not ready yet"
-          sleep 10
-      done
+  echo "   Waiting for DSCInitialization..."
+  for i in $(seq 1 30); do
+      if kubectl get dscinitializations default-dsci -o jsonpath='{.status.phase}' 2>/dev/null | grep -q "Ready"; then
+          echo "   DSCInitialization ready"
+          break
+      fi
+      if [ "$i" -eq 30 ]; then
+          echo "   DSCInitialization not ready yet"
+      fi
+      sleep 10
+  done
 
-      # Create DataScienceCluster with KServe only
-      echo "   Creating DataScienceCluster (KServe only)..."
-      kubectl apply -f - <<EOF
+  # Create DataScienceCluster with KServe only
+  echo "   Creating DataScienceCluster (KServe only)..."
+  kubectl apply -f - <<EOF
 apiVersion: datasciencecluster.opendatahub.io/v2
 kind: DataScienceCluster
 metadata:
@@ -306,6 +326,8 @@ metadata:
 spec:
   components:
     kserve:
+      modelsAsService:
+        managementState: Removed # we do not use default installation in opendatahub ns
       managementState: Managed
       nim:
         managementState: Managed
@@ -332,23 +354,26 @@ spec:
       managementState: Removed
 EOF
 
-      echo "   Waiting for DataScienceCluster (this may take several minutes)..."
-      for i in {1..60}; do
-          PHASE=$(kubectl get datasciencecluster default-dsc -o jsonpath='{.status.phase}' 2>/dev/null || echo "")
-          if [[ "$PHASE" == "Ready" ]]; then
-              echo "   ✅ DataScienceCluster ready"
-              break
-          fi
-          [[ $((i % 6)) -eq 0 ]] && echo "      Status: $PHASE ($i/60)"
-          [[ $i -eq 60 ]] && echo "   ⚠️  DataScienceCluster not fully ready, continuing..."
-          sleep 10
-      done
-      
-      # Wait for LLMInferenceService CRD
-      echo "   Waiting for LLMInferenceService CRD..."
-      wait_for_crd "llminferenceservices.serving.kserve.io" 120 || \
-          echo "   ⚠️  LLMInferenceService CRD not ready"
-  fi
+  echo "   Waiting for DataScienceCluster (this may take several minutes)..."
+  for i in $(seq 1 60); do
+      PHASE=$(kubectl get datasciencecluster default-dsc -o jsonpath='{.status.phase}' 2>/dev/null || echo "")
+      if [ "$PHASE" = "Ready" ]; then
+          echo "   DataScienceCluster ready"
+          break
+      fi
+      if [ $((i % 6)) -eq 0 ]; then
+          echo "      Status: $PHASE ($i/60)"
+      fi
+      if [ "$i" -eq 60 ]; then
+          echo "   DataScienceCluster not fully ready, continuing..."
+      fi
+      sleep 10
+  done
+  
+  # Wait for LLMInferenceService CRD
+  echo "   Waiting for LLMInferenceService CRD..."
+  wait_for_crd "llminferenceservices.serving.kserve.io" 120 || \
+      echo "   ⚠️  LLMInferenceService CRD not ready"
 else
   echo ""
   echo "3️⃣  Skipping ODH installation (--skip-odh)"
