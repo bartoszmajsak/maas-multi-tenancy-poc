@@ -139,12 +139,15 @@ Manages resources **within their tenant namespace**:
 |--------|-----------|
 | Deploy, configure, remove tenant-specific models | Access other tenant namespaces |
 | Manage Role/RoleBindings for model access | Modify Gateways or cluster-level resources |
-| Update tier mappings (group → tier ConfigMap) | Change AuthPolicies |
-| View metrics, logs, and usage for their tenant | Deploy to shared-models namespace |
+| Configure RateLimitPolicy per tier | Change AuthPolicies |
+| Update tier mappings (group → tier ConfigMap) | Deploy to shared-models namespace |
+| View metrics, logs, and usage for their tenant | |
 
-> **Note:** Shared models are managed by Platform Administrators. Tenant Administrators can request access to shared models, but the access grant (RoleBinding in `shared-models` namespace) is a platform-level operation.
+> [!NOTE]
+> Shared models are managed by Platform Administrators. Tenant Administrators can request access to shared models, but the access grant (RoleBinding in `shared-models` namespace) is a platform-level operation.
 
-> **Note:** Rate limit policies (`RateLimitPolicy`, `TokenRateLimitPolicy`) must reside in the Gateway namespace (`openshift-ingress`) due to Kuadrant's `LocalPolicyTargetReference` requirement. This makes rate limit configuration a **Platform Administrator** responsibility, or requires Platform Admins to grant tenant admins explicit RBAC access to the gateway namespace.
+> [!NOTE]
+> Rate limit policies (`RateLimitPolicy`, `TokenRateLimitPolicy`) must reside in the Gateway namespace (`openshift-ingress`) due to Kuadrant's `LocalPolicyTargetReference` requirement. This makes rate limit configuration a **Platform Administrator** responsibility, or requires Platform Admins to grant tenant admins explicit RBAC access to the gateway namespace.
 
 ## Policy Granularity
 
@@ -154,6 +157,31 @@ Policies can be applied at different levels:
 2. **Per-model policies** - attached to model's HTTPRoute, take precedence over tenant policies.
 
 This allows both tenant-wide defaults and model-specific overrides for rate limiting, authentication, etc.
+
+## Shared Model Infrastructure Considerations
+
+Sharing model infrastructure (GPUs, serving instances) works well when tenants are e.g. **teams within the same organization**, but risks increase as tenants become more separate organizational units.
+
+### Two Levels of Sharing
+
+| Level | What it means | Risk profile |
+|-------|---------------|--------------|
+| **Shared infrastructure** | Different containers/processes on the same GPU | Lower risk—OS-level isolation exists, but GPU memory boundaries are weak |
+| **Shared model process** | Multiple tenants hit the same vLLM/TGI server | Higher risk—KV-cache and memory are shared within the process (PromptPeek attacks apply here) |
+
+### Core Risks
+
+| Risk | Impact |
+|------|--------|
+| **GPU memory isolation** | GPUs lack robust memory isolation. Side-channel attacks can exploit shared caches and memory hierarchies. PromptPeek demonstrated 95%+ success reconstructing prompts through KV-cache sharing in multi-tenant serving. |
+| **Performance interference** | Without hardware isolation, aggressive workloads starve neighbors. Inference latency becomes unpredictable, violating enterprise SLA guarantees. |
+| **Data leakage** | Shared GPU memory during inference creates cross-tenant exposure. Fine-tuning on shared infrastructure can leak tenant data into model behavior. |
+| **Weight poisoning** | If LoRA adapters are swapped dynamically on shared infrastructure, a malicious or corrupted adapter from one tenant can affect base model stability for others. |
+
+### Mitigations
+
+- **[MIG (Multi-Instance GPU)](https://docs.nvidia.com/datacenter/tesla/mig-user-guide/)**: On NVIDIA A100/H100, MIG provides physical hardware partitioning with isolated memory, cache, and SMs—the industry standard for addressing memory isolation and performance interference.
+- **Dedicated model processes**: Run separate vLLM instances per tenant to eliminate KV-cache sharing risks. Alternatively, vLLM's [prefix caching with `cache_salt`](https://docs.vllm.ai/en/latest/design/prefix_caching.html) can isolate cache reuse per tenant within a shared process.
 
 ## ODH Operator Integration
 
@@ -207,6 +235,7 @@ Enterprise naming like `TENANT_ACME_PROD` must be converted to `tenant-acme-prod
 - **Shared models governance** - Who approves tenant access to shared models? What's the request workflow?
 - **Sub-tenant granularity** - Should tenants be able to create sub-groups or sub-tiers?
 - **ResourceQuota/LimitRange** - Should the controller create default quotas per tenant to prevent noisy neighbor issues?
+- **Policy namespace location** - Kuadrant's `LocalPolicyTargetReference` requires policies to be in the Gateway namespace (`openshift-ingress`), not the tenant namespace. This limits tenant admin's ability to self-manage policies. Can this be addressed with cross-namespace policy references?
 
 ## Adding a New Tenant 
 
