@@ -33,11 +33,49 @@ A proof-of-concept demonstrating multi-tenant Model-as-a-Service on OpenShift wi
 ## Quick Start
 
 > [!IMPORTANT]
-> **Requires changes in maas-api for shared models.** Install with:
-> ```bash
-> ./deploy.sh --install-prereqs --maas-api-image quay.io/bmajsak/maas-api:gw
-> ```
 > Depends on https://github.com/opendatahub-io/models-as-a-service/pull/360
+
+### Deploy Pre-built Operator
+
+```bash
+kubectl create namespace opendatahub-operator-system --dry-run=client -o yaml | kubectl apply -f -
+
+kubectl apply -f - <<EOF
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: opendatahub-operator-system
+  namespace: opendatahub-operator-system
+spec: {}
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: opendatahub-maas-multitenant-poc
+  namespace: openshift-marketplace
+spec:
+  sourceType: grpc
+  image: quay.io/bmajsak/opendatahub-operator-catalog:v3.3.0-maas-multitenant-poc
+  displayName: OpenDataHub MaaS Multitenant PoC
+  publisher: bmajsak
+  updateStrategy:
+    registryPoll:
+      interval: 10m
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: opendatahub-operator
+  namespace: opendatahub-operator-system
+spec:
+  channel: fast
+  name: opendatahub-operator
+  source: opendatahub-maas-multitenant-poc
+  sourceNamespace: openshift-marketplace
+EOF
+```
+
+### Deploy PoC
 
 ```bash
 # Install prerequisites + deploy
@@ -49,6 +87,10 @@ A proof-of-concept demonstrating multi-tenant Model-as-a-Service on OpenShift wi
 # Run tests
 ./test.sh
 ```
+
+## Developer Guide
+
+See [DEV.md](DEV.md) for building custom operator, bundle, catalog, and maas-api images.
 
 ## Architecture
 
@@ -67,7 +109,7 @@ See [TENANCY_MODEL.md](TENANCY_MODEL.md) for detailed diagrams, architecture com
 | Role | Responsibilities |
 |------|-----------------|
 | **Platform Admin** | Manage tenants, gateways, shared models, AuthPolicies, Keycloak |
-| **Tenant Admin** | Deploy models, configure RBAC & rate limits, manage tier mappings (within their namespace) |
+| **Tenant Admin** | Deploy models, configure RBAC & tier mappings (within their namespace) |
 
 See [TENANCY_MODEL.md](TENANCY_MODEL.md#personas) for detailed responsibilities.
 

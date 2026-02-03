@@ -113,6 +113,24 @@ Manages the overall MaaS platform infrastructure:
 - Configure AuthPolicies
 - Deploy and manage shared models
 
+**RBAC Requirements**: Creating tenants via `ModelsAsService` CR requires cluster-level permissions since it's a cluster-scoped resource:
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: maas-tenant-provisioner
+rules:
+- apiGroups: ["components.platform.opendatahub.io"]
+  resources: ["modelsasservices"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["gateway.networking.k8s.io"]
+  resources: ["gateways"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+```
+
+For this PoC, cluster-admin access is assumed.
+
 ### Tenant Administrator
 
 Manages resources **within their tenant namespace**:
@@ -121,11 +139,12 @@ Manages resources **within their tenant namespace**:
 |--------|-----------|
 | Deploy, configure, remove tenant-specific models | Access other tenant namespaces |
 | Manage Role/RoleBindings for model access | Modify Gateways or cluster-level resources |
-| Configure RateLimitPolicy per tier | Change AuthPolicies |
-| Update tier mappings (group → tier ConfigMap) | Deploy to shared-models namespace |
-| View metrics, logs, and usage for their tenant | |
+| Update tier mappings (group → tier ConfigMap) | Change AuthPolicies |
+| View metrics, logs, and usage for their tenant | Deploy to shared-models namespace |
 
 > **Note:** Shared models are managed by Platform Administrators. Tenant Administrators can request access to shared models, but the access grant (RoleBinding in `shared-models` namespace) is a platform-level operation.
+
+> **Note:** Rate limit policies (`RateLimitPolicy`, `TokenRateLimitPolicy`) must reside in the Gateway namespace (`openshift-ingress`) due to Kuadrant's `LocalPolicyTargetReference` requirement. This makes rate limit configuration a **Platform Administrator** responsibility, or requires Platform Admins to grant tenant admins explicit RBAC access to the gateway namespace.
 
 ## Policy Granularity
 
@@ -136,12 +155,58 @@ Policies can be applied at different levels:
 
 This allows both tenant-wide defaults and model-specific overrides for rate limiting, authentication, etc.
 
+## ODH Operator Integration
+
+The `ModelsAsService` CRD in the ODH operator has been enhanced to support multi-tenancy:
+
+### Current Design
+
+- **Tenant-as-Name**: The CR `metadata.name` serves as the tenant identifier and determines the target namespace
+- **Multiple Instances**: Each `ModelsAsService` CR represents a tenant (removes singleton constraint)
+- **Automatic Namespace Creation**: Controller creates tenant namespace if it doesn't exist
+
+```yaml
+apiVersion: components.platform.opendatahub.io/v1alpha1
+kind: ModelsAsService
+metadata:
+  name: tenant-a  # ← Tenant name = namespace
+spec:
+  gatewayRef:  # Reference to existing Gateway (must exist)
+    namespace: openshift-ingress
+    name: tenant-a-gateway
+  authentication:
+    oidc:
+      jwksUrl: http://keycloak.keycloak-system.svc:8080/realms/tenant-a/protocol/openid-connect/certs
+      issuer: http://keycloak.keycloak-system.svc:8080/realms/tenant-a  # Optional: validates iss claim
+    clusterIdentities: {}  # Enable Kubernetes-native authentication (presence = enabled)
+```
+
+### Design Decisions
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| **ServiceAccount Audience** | Convention | Always `{tenant-name}-sa`. Custom audiences require maas-api changes. |
+| **Tier Configuration** | Tenant Admin | `tier-to-group-mapping` ConfigMap managed by tenant admins. |
+| **Rate Limit Policies** | Platform Admin | Kuadrant requires policies in gateway namespace. See note above. |
+| **OIDC Issuer Validation** | Implemented | Optional `issuer` field validates JWT `iss` claim. |
+
+### Naming Constraints
+
+Tenant names (CR `metadata.name`) must follow Kubernetes namespace naming rules since the name becomes the namespace:
+
+- Lowercase alphanumeric characters or hyphens only
+- Must start with a letter
+- Maximum 63 characters
+- No underscores (use hyphens instead)
+
+Enterprise naming like `TENANT_ACME_PROD` must be converted to `tenant-acme-prod`.
+
 ## Open Questions
 
 - **Billing/Monitoring** - How to track and attribute usage per tenant? (metrics, logs, cost allocation)
 - **Shared models governance** - Who approves tenant access to shared models? What's the request workflow?
 - **Sub-tenant granularity** - Should tenants be able to create sub-groups or sub-tiers?
-- **Policy namespace location** - Kuadrant's `LocalPolicyTargetReference` requires policies to be in the Gateway namespace (`openshift-ingress`), not the tenant namespace. This limits tenant admin's ability to self-manage policies. Can this be addressed with cross-namespace policy references?
+- **ResourceQuota/LimitRange** - Should the controller create default quotas per tenant to prevent noisy neighbor issues?
 
 ## Adding a New Tenant 
 
