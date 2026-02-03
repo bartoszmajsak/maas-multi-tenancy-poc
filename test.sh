@@ -38,9 +38,28 @@ decode_jwt() {
     echo "$1" | cut -d. -f2 | tr '_-' '/+' | base64 -d 2>/dev/null | jq . 2>/dev/null
 }
 
-# Helper: HTTP status check
+# Helper: HTTP status check (with optional verbose output)
 http_status() {
-    curl -sk -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $2" "$1"
+    local url="$1" token="$2"
+    if [[ "$VERBOSE" == true ]]; then
+        echo -e "\n${YELLOW}>>> curl -sk -v -H \"Authorization: Bearer <token>\" \"$url\"${NC}" >&2
+        local output=$(curl -sk -v -w "\n%{http_code}" -H "Authorization: Bearer $token" "$url" 2>&1)
+        echo "$output" | head -n -1 >&2
+        echo "$output" | tail -1
+    else
+        curl -sk -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $token" "$url"
+    fi
+}
+
+# Helper: HTTP status check with response body
+http_status_body() {
+    local url="$1" token="$2"
+    if [[ "$VERBOSE" == true ]]; then
+        echo -e "\n${YELLOW}>>> curl -sk -v -H \"Authorization: Bearer <token>\" \"$url\"${NC}" >&2
+        curl -sk -v -H "Authorization: Bearer $token" "$url" 2>&1
+    else
+        curl -sk -H "Authorization: Bearer $token" "$url" 2>/dev/null
+    fi
 }
 
 # Helper: get inference token from MaaS API
@@ -92,11 +111,15 @@ test_tokens() {
     echo "┌─────────────┬─────────────────────┬────────────────────────────────┬──────────────┐"
     echo "│ Realm       │ Username            │ Groups                         │ Expected Tier│"
     echo "├─────────────┼─────────────────────┼────────────────────────────────┼──────────────┤"
-    echo "│ tenant-a    │ alice_lead          │ Engineering, Project-Alpha     │ Premium      │"
-    echo "│ tenant-a    │ bob_sre             │ Site-Reliability               │ Enterprise   │"
-    echo "│ tenant-b    │ charlie_sec_lead    │ Product-Security, Project-Omega│ Enterprise   │"
-    echo "│ tenant-b    │ grace_dev           │ Project-Omega                  │ Premium      │"
+    echo "│ tenant-a    │ alice_lead          │ Engineering, Project-Alpha     │ premium      │"
+    echo "│ tenant-a    │ bob_sre             │ Site-Reliability               │ enterprise   │"
+    echo "│ tenant-b    │ charlie_sec_lead    │ Product-Security, Project-Omega│ max          │"
+    echo "│ tenant-b    │ grace_dev           │ Project-Omega                  │ basic        │"
     echo "└─────────────┴─────────────────────┴────────────────────────────────┴──────────────┘"
+    echo ""
+    echo -e "📋 ${BLUE}Tier Naming:${NC}"
+    echo "   Tenant-A: free → premium → enterprise"
+    echo "   Tenant-B: basic → pro → max"
     
     echo -e "\n📋 ${BLUE}Copy-paste commands:${NC}"
     echo "TOKEN_A=\$(curl -sk -X POST \"${KEYCLOAK}/realms/tenant-a/protocol/openid-connect/token\" -d \"client_id=test-client\" -d \"grant_type=password\" -d \"username=alice_lead\" -d \"password=letmein\" | jq -r '.access_token')"
