@@ -1,0 +1,43 @@
+# Token Rate Limiting Policy for Tenant-A (Nebula Labs)
+# Generous limits to encourage experimentation
+---
+apiVersion: kuadrant.io/v1alpha1
+kind: TokenRateLimitPolicy
+metadata:
+  name: nebula-labs-token-limits
+  namespace: openshift-ingress
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: Gateway
+    name: tenant-a-gateway
+  limits:
+    # Free tier - 15K tokens/min (~5-10 requests/min)
+    free-tokens:
+      rates:
+        - limit: 15000
+          window: 1m
+      when:
+        - predicate: auth.identity.tier == "free" && !request.path.endsWith("/v1/models")
+      counters:
+        - expression: auth.identity.userid
+
+    # Premium tier - 80K tokens/min (comfortable for active development)
+    premium-tokens:
+      rates:
+        - limit: 80000
+          window: 1m
+      when:
+        - predicate: auth.identity.tier == "premium" && !request.path.endsWith("/v1/models")
+      counters:
+        - expression: auth.identity.userid
+
+    # Enterprise tier - 300K tokens/min (power users)
+    enterprise-tokens:
+      rates:
+        - limit: 300000
+          window: 1m
+      when:
+        - predicate: auth.identity.tier == "enterprise" && !request.path.endsWith("/v1/models")
+      counters:
+        - expression: auth.identity.userid

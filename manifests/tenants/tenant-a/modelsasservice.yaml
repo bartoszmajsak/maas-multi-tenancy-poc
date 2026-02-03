@@ -1,0 +1,22 @@
+# ModelsAsService CR for tenant-a
+#
+# The controller will:
+# 1. Create the namespace 'tenant-a' if it doesn't exist
+# 2. Deploy maas-api with tenant-specific configuration
+# 3. Configure AuthPolicy with OIDC + SA token authentication
+#
+# Note: tier-to-group-mapping ConfigMap must be created separately
+# by the tenant admin (see tier-mapping-configmap.yaml)
+apiVersion: components.platform.opendatahub.io/v1alpha1
+kind: ModelsAsService
+metadata:
+  name: tenant-a
+spec:
+  gatewayRef:
+    namespace: openshift-ingress
+    name: tenant-a-gateway
+  authentication:
+    oidc:
+      # Internal Keycloak URL - no cluster-specific config needed
+      jwksUrl: http://tenant-poc-keycloak-service.keycloak-system.svc.cluster.local:8080/realms/tenant-a/protocol/openid-connect/certs
+    clusterIdentities: {}
