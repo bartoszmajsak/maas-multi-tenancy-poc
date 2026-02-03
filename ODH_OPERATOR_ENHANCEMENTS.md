@@ -74,6 +74,9 @@ spec:
     clusterIdentities: {}
 ```
 
+> [!TIP]
+> Hybrid authentication (OIDC + cluster identities) is fully supported. This enables external users to authenticate via OIDC while internal services use Kubernetes TokenReview simultaneously.
+
 ### 4. Tenant Namespace Management
 
 **What:** The controller creates and manages the tenant namespace with proper labels.
@@ -94,7 +97,8 @@ metadata:
     pod-security.kubernetes.io/audit: baseline
 ```
 
-> **Note:** Pod Security uses `audit` mode for PoC flexibility (logs violations without blocking). For production, consider `enforce: baseline` or `enforce: restricted` for stronger isolation.
+> [!NOTE]
+> Pod Security uses `audit` mode for PoC flexibility (logs violations without blocking). For production, consider `enforce: baseline` or `enforce: restricted` for stronger isolation.
 
 The controller also creates a **NetworkPolicy** in each tenant namespace that allows ingress traffic from:
 - ODH-managed namespaces (`opendatahub.io/generated-namespace`)
@@ -155,18 +159,6 @@ This gives us:
 - Filtered watches (only MaaS-labeled resources trigger reconciliation)
 - Proper cache coherence (reads return consistent state)
 
-The client is injected into the controller via context:
-
-```go
-// In main.go
-ctx = modelsasservice.ContextWithClient(ctx, maasClient)
-
-// In controller setup
-if maasClient := ClientFromContext(ctx); maasClient != nil {
-    rb = rb.WithClient(maasClient)
-}
-```
-
 ## Controller Behavior
 
 ### Reconciliation Flow
@@ -197,8 +189,7 @@ status:
 
 1. **Gateway must pre-exist** - Controller validates gateway exists but doesn't create it. Deployment sequence: Gateway → ModelsAsService CR. The controller will retry reconciliation until the gateway is available.
 2. **No automatic RBAC for models** - Tier-based RBAC must be explicitly defined (see [TENANCY_MODEL.md](./TENANCY_MODEL.md))
-3. **Single overlay per tenant** - Can't mix OIDC and non-OIDC auth modes within one tenant
-4. **Pod Security audit mode** - PoC uses `audit` for flexibility; production should use `enforce`
+3. **Pod Security audit mode** - PoC uses `audit` for flexibility; production should use `enforce`
 
 ## Related Documentation
 
