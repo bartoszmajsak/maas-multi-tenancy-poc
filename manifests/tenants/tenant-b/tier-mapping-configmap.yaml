@@ -1,5 +1,5 @@
-# Tier to Group Mapping for Tenant-B
-# Maps Keycloak groups to rate limit tiers
+# Tier to Group Mapping for Tenant-B (Apex Industries)
+# Modern tier naming with corporate groups
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -11,23 +11,28 @@ metadata:
     component: tier-mapping
 data:
   tiers: |
-    # Free tier - default for all authenticated users
-    - name: free
-      displayName: Free Tier
+    # Basic tier - contractors and external partners
+    - name: basic
+      displayName: "Basic"
       level: 0
       groups:
+        - Contractors
+        - External-Partners
         - system:authenticated
 
-    # Premium tier - for project teams
-    - name: premium
-      displayName: Premium Tier
+    # Pro tier - full-time employees
+    - name: pro
+      displayName: "Pro"
       level: 1
       groups:
-        - Project-Omega
+        - Full-Time-Employees
+        - Product-Teams
 
-    # Enterprise tier - for security team with highest priority
-    - name: enterprise
-      displayName: Enterprise Tier
+    # Max tier - executives and priority users
+    - name: max
+      displayName: "Max"
       level: 2
       groups:
+        - C-Suite
         - Product-Security
+        - VIP-Users

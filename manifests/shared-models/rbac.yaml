@@ -27,15 +27,15 @@ subjects:
   - kind: Group
     name: system:serviceaccounts:tenant-a-tier-enterprise
     apiGroup: rbac.authorization.k8s.io
-  # Tenant-B tiers
+  # Tenant-B tiers (uses: basic, pro, max)
   - kind: Group
-    name: system:serviceaccounts:tenant-b-tier-free
+    name: system:serviceaccounts:tenant-b-tier-basic
     apiGroup: rbac.authorization.k8s.io
   - kind: Group
-    name: system:serviceaccounts:tenant-b-tier-premium
+    name: system:serviceaccounts:tenant-b-tier-pro
     apiGroup: rbac.authorization.k8s.io
   - kind: Group
-    name: system:serviceaccounts:tenant-b-tier-enterprise
+    name: system:serviceaccounts:tenant-b-tier-max
     apiGroup: rbac.authorization.k8s.io
 roleRef:
   kind: Role

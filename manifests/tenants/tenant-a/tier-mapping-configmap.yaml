@@ -1,5 +1,5 @@
-# Tier to Group Mapping for Tenant-A
-# Maps Keycloak groups to rate limit tiers
+# Tier to Group Mapping for Tenant-A (Nebula Labs)
+# Classic tier naming with startup-friendly groups
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -11,24 +11,26 @@ metadata:
     component: tier-mapping
 data:
   tiers: |
-    # Free tier - default for all authenticated users
+    # Free tier - open experimentation for all
     - name: free
-      displayName: Free Tier
+      displayName: "Free"
       level: 0
       groups:
-        - Project-Alpha
+        - Indie-Hackers
         - system:authenticated
 
-    # Premium tier - for engineering teams
+    # Premium tier - for active contributors
     - name: premium
-      displayName: Premium Tier
+      displayName: "Premium"
       level: 1
       groups:
+        - Open-Source-Contributors
         - Engineering
 
-    # Enterprise tier - for SRE with highest priority
+    # Enterprise tier - power users and maintainers
     - name: enterprise
-      displayName: Enterprise Tier
+      displayName: "Enterprise"
       level: 2
       groups:
+        - Core-Maintainers
         - Site-Reliability
