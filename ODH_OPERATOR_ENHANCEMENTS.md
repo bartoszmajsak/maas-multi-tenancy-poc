@@ -159,6 +159,29 @@ This gives us:
 - Filtered watches (only MaaS-labeled resources trigger reconciliation)
 - Proper cache coherence (reads return consistent state)
 
+**PoC Consideration: Context-Based Client Injection**
+
+The custom client is passed to the MaaS controller via `context.Context` rather than a constructor parameter:
+
+```go
+// main.go
+maasCtx := modelsasservicectrl.ContextWithClient(ctx, maasClient)
+CreateComponentReconcilers(maasCtx, mgr)
+
+// modelsasservice_controller.go
+if maasClient := ClientFromContext(ctx); maasClient != nil {
+    rb = rb.WithClient(maasClient)
+}
+```
+
+This pattern was chosen because:
+- All component handlers implement a uniform `NewComponentReconciler(ctx, mgr)` interface
+- Adding a MaaS-specific parameter would break this uniformity or require interface changes
+- Context allows optional injection - MaaS extracts the client while other components ignore it
+- Falls back gracefully to manager's default client if not set
+
+For production, consider whether this pattern should be generalized (e.g., a `ComponentOptions` struct) or if MaaS should have a distinct initialization path given its unique multi-tenant requirements.
+
 ## Controller Behavior
 
 ### Reconciliation Flow
